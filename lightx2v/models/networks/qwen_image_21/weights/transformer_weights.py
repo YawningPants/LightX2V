@@ -61,7 +61,10 @@ class QwenImage21BlockWeights(WeightModule):
             self.add_module(name, LN_WEIGHT_REGISTER[config.get("layer_norm_type", "torch")](eps=config["eps"]))
         attn_type = config.get("attn_type", "torch_sdpa")
         attn_kwargs = {"query_chunk_size": config.get("mps_sdpa_query_chunk_size", 0)} if attn_type == "torch_sdpa_mps" else {}
-        self.add_module("attention", ATTN_WEIGHT_REGISTER[attn_type](**attn_kwargs))
+        attention = ATTN_WEIGHT_REGISTER[attn_type](**attn_kwargs)
+        if attn_type == "npu_quant_flash_attn":
+            attention.set_config(config)
+        self.add_module("attention", attention)
         if config.get("seq_parallel", False):
             parallel = config["parallel"]
             self.add_module("calculate_parallel", ATTN_WEIGHT_REGISTER[parallel.get("seq_p_attn_type", "ulysses")]())
